@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Project Assignment 1 — Containerized Infrastructure & Advanced Networking by Lekhit Mehta">
+    <title>Project Assignment 1 | Lekhit Mehta</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════════════
+           DESIGN SYSTEM — Midnight & Slate
+           ═══════════════════════════════════════════════════ */
+        :root {
+            --bg-deep:       #060a14;
+            --bg-base:       #0a0f1e;
+            --bg-surface:    #0f1629;
+            --bg-elevated:   #141c33;
+            --bg-hover:      #1a2440;
+            --border-subtle: rgba(148, 163, 194, 0.08);
+            --border-light:  rgba(148, 163, 194, 0.12);
+            --border-focus:  rgba(148, 163, 194, 0.20);
+            --text-primary:  #e2e8f0;
+            --text-secondary:#8892a8;
+            --text-muted:    #5a6478;
+            --accent-blue:   #4a6fa5;
+            --accent-slate:  #64748b;
+            --glass-bg:      rgba(15, 22, 41, 0.65);
+            --glass-border:  rgba(148, 163, 194, 0.07);
+            --shadow-sm:     0 2px 8px rgba(0, 0, 0, 0.25);
+            --shadow-md:     0 4px 24px rgba(0, 0, 0, 0.35);
+            --shadow-lg:     0 8px 48px rgba(0, 0, 0, 0.45);
+            --shadow-glow:   0 0 60px rgba(74, 111, 165, 0.06);
+            --radius-sm:     8px;
+            --radius-md:     16px;
+            --radius-lg:     24px;
+            --font:          'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            --mono:          'SF Mono', 'Cascadia Code', 'JetBrains Mono', ui-monospace, Consolas, monospace;
+            --ease:          cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ── Reset ── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; font-size: 16px; }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* ── Ambient Background ── */
+        .ambient {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .ambient::before {
+            content: '';
+            position: absolute;
+            width: 700px; height: 700px;
+            top: -250px; left: -200px;
+            background: radial-gradient(circle, rgba(74, 111, 165, 0.08) 0%, transparent 70%);
+            animation: drift 30s ease-in-out infinite alternate;
+        }
+        .ambient::after {
+            content: '';
+            position: absolute;
+            width: 500px; height: 500px;
+            bottom: -200px; right: -100px;
+            background: radial-gradient(circle, rgba(100, 116, 139, 0.06) 0%, transparent 70%);
+            animation: drift 25s ease-in-out infinite alternate-reverse;
+        }
+        @keyframes drift {
+            0%   { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(80px, 40px) scale(1.15); }
+        }
+
+        /* ── Wrapper ── */
+        .wrapper {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 clamp(1.25rem, 4vw, 5rem);
+        }
+
+        /* ── Fade-in Animation ── */
+        .reveal {
+            opacity: 0;
+            transform: translateY(28px);
+            transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ── Typography ── */
+        h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; color: var(--text-primary); }
+        h2 { font-size: clamp(1.3rem, 3vw, 2rem); font-weight: 700; letter-spacing: -0.03em; color: var(--text-primary); }
+        h3 { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+        p  { font-weight: 400; color: var(--text-secondary); line-height: 1.75; }
+
+        /* ── Glass Card ── */
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px) saturate(120%);
+            -webkit-backdrop-filter: blur(24px) saturate(120%);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md), var(--shadow-glow);
+            transition: border-color 0.4s var(--ease), box-shadow 0.4s var(--ease), transform 0.4s var(--ease);
+        }
+        .card:hover {
+            border-color: var(--border-light);
+            box-shadow: var(--shadow-lg), 0 0 80px rgba(74, 111, 165, 0.08);
+            transform: translateY(-3px);
+        }
+
+        /* ═══ STUDENT BANNER ═══ */
+        .student-banner {
+            background: rgba(15, 22, 41, 0.5);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .student-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem 2.5rem;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+        }
+        .student-details strong {
+            color: var(--text-secondary);
+            margin-right: 0.4rem;
+            font-weight: 600;
+        }
+
+        /* ═══ HERO ═══ */
+        .hero {
+            padding: clamp(4rem, 10vw, 8rem) 0 clamp(3rem, 6vw, 6rem);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 2rem;
+        }
+        .hero-content { max-width: 720px; }
+        .hero-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--accent-blue);
+            margin-bottom: 1.25rem;
+        }
+        .hero-label svg { width: 14px; height: 14px; stroke: var(--accent-blue); }
+        .hero h1 span { color: var(--text-muted); }
+        .hero p { margin-top: 1.5rem; font-size: clamp(0.95rem, 1.5vw, 1.125rem); max-width: 600px; }
+
+        .github-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1.75rem;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            transition: all 0.35s var(--ease);
+            cursor: pointer;
+        }
+        .github-btn svg { width: 20px; height: 20px; fill: currentColor; transition: transform 0.35s var(--ease); }
+        .github-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-focus);
+            color: var(--text-primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .github-btn:hover svg { transform: scale(1.1); }
+
+        /* ═══ TWO-COLUMN GRID ═══ */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: clamp(3rem, 6vw, 6rem);
+        }
+        @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+        .card-inner { padding: clamp(1.5rem, 3vw, 2.5rem); }
+
+        .section-icon {
+            width: 36px; height: 36px;
+            padding: 7px;
+            border-radius: var(--radius-sm);
+            background: rgba(74, 111, 165, 0.1);
+            border: 1px solid rgba(74, 111, 165, 0.15);
+            margin-bottom: 1.25rem;
+        }
+        .section-icon svg { width: 100%; height: 100%; stroke: var(--accent-blue); }
+
+        .objective-list { list-style: none; }
+        .objective-list li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.6rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+        .objective-list li::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 9px;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            opacity: 0.6;
+        }
+
+        .tech-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+        .tech-tag {
+            padding: 0.4rem 0.85rem;
+            background: rgba(74, 111, 165, 0.08);
+            border: 1px solid rgba(74, 111, 165, 0.12);
+            border-radius: 999px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--accent-slate);
+            transition: all 0.3s var(--ease);
+        }
+        .tech-tag:hover {
+            background: rgba(74, 111, 165, 0.15);
+            border-color: rgba(74, 111, 165, 0.25);
+            color: var(--text-secondary);
+        }
+
+        /* ═══ BENTO: INFRASTRUCTURE GRID ═══ */
+        .bento {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: clamp(3rem, 6vw, 6rem);
+        }
+        @media (min-width: 1024px) {
+            .bento { grid-template-columns: repeat(12, 1fr); }
+            .bento-8  { grid-column: span 8; }
+            .bento-4  { grid-column: span 4; }
+            .bento-5  { grid-column: span 5; }
+            .bento-7  { grid-column: span 7; }
+            .bento-12 { grid-column: span 12; }
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .card-header h2 { font-size: 1.15rem; font-weight: 600; }
+        .badge {
+            padding: 0.25rem 0.65rem;
+            background: rgba(74, 111, 165, 0.1);
+            border: 1px solid rgba(74, 111, 165, 0.15);
+            border-radius: var(--radius-sm);
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-slate);
+        }
+
+        /* ── Code Block ── */
+        .code-block {
+            position: relative;
+            background: rgba(6, 10, 20, 0.8);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            margin-top: 0.75rem;
+            overflow-x: auto;
+        }
+        .code-block pre {
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            line-height: 1.65;
+            color: #94a3b8;
+            white-space: pre;
+            tab-size: 4;
+        }
+        .code-block .comment { color: #475569; }
+        .code-block .keyword { color: #6882a8; }
+        .code-block .string  { color: #7a8da6; }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.65rem;
+            background: rgba(148, 163, 194, 0.06);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            font-size: 0.62rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s var(--ease);
+            font-family: var(--font);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .copy-btn svg { width: 12px; height: 12px; stroke: currentColor; }
+        .copy-btn:hover {
+            background: rgba(148, 163, 194, 0.12);
+            border-color: var(--border-light);
+            color: var(--text-secondary);
+        }
+
+        /* ── Terminal Block ── */
+        .terminal {
+            background: rgba(6, 10, 20, 0.9);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        .terminal-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.75rem 1rem;
+            background: rgba(15, 22, 41, 0.6);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .terminal-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            opacity: 0.3;
+        }
+        .terminal-body {
+            padding: 1.25rem;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            line-height: 1.65;
+            color: var(--accent-blue);
+            white-space: pre-wrap;
+        }
+
+        /* ═══ SECTION DIVIDER ═══ */
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            margin-bottom: clamp(2rem, 4vw, 3rem);
+        }
+        .section-heading h2 { white-space: nowrap; }
+        .section-heading span { color: var(--text-muted); font-weight: 400; }
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border-subtle), transparent);
+        }
+
+        /* ═══ GALLERY ═══ */
+        .gallery {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: clamp(3rem, 6vw, 6rem);
+        }
+        @media (min-width: 640px) { .gallery { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1024px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
+
+        .gallery-item {
+            cursor: pointer;
+            overflow: hidden;
+            border-radius: var(--radius-lg);
+        }
+        .gallery-item .card-inner { padding: 1.25rem; }
+        .gallery-img-wrap {
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-subtle);
+        }
+        .gallery-img-wrap img {
+            width: 100%;
+            display: block;
+            transition: transform 0.6s var(--ease);
+        }
+        .gallery-item:hover .gallery-img-wrap img {
+            transform: scale(1.06);
+        }
+        .proof-label {
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--accent-blue);
+            margin-bottom: 0.35rem;
+        }
+        .gallery-item h3 {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* ═══ REPORT ═══ */
+        .report-card { padding: clamp(2rem, 5vw, 4rem); }
+        .report-card h2 {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            margin-bottom: clamp(2rem, 4vw, 3.5rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+        }
+        .report-card h2 span { color: var(--accent-blue); font-style: italic; }
+
+        .report-section { margin-bottom: 3rem; }
+        .report-section:last-child { margin-bottom: 0; }
+        .report-label {
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+        .report-section p {
+            font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+            line-height: 1.8;
+        }
+
+        /* ── ASCII Diagram ── */
+        .ascii-diagram {
+            background: rgba(6, 10, 20, 0.8);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: clamp(1rem, 2vw, 2rem);
+            font-family: var(--mono);
+            font-size: clamp(0.6rem, 1vw, 0.75rem);
+            line-height: 1.35;
+            color: var(--accent-blue);
+            white-space: pre;
+            overflow-x: auto;
+            margin: 2rem 0;
+        }
+
+        /* ── Comparison Cards ── */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-top: 1.25rem;
+        }
+        @media (min-width: 640px) { .compare-grid { grid-template-columns: 1fr 1fr; } }
+
+        .compare-card {
+            padding: 1.5rem;
+            background: rgba(74, 111, 165, 0.04);
+            border: 1px solid rgba(74, 111, 165, 0.08);
+            border-radius: var(--radius-md);
+            transition: border-color 0.3s var(--ease);
+        }
+        .compare-card:hover { border-color: rgba(74, 111, 165, 0.18); }
+        .compare-card h4 {
+            font-size: 0.62rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--accent-blue);
+            margin-bottom: 0.75rem;
+        }
+        .compare-card p {
+            font-size: 0.82rem;
+            line-height: 1.7;
+        }
+
+        /* ═══ FOOTER ═══ */
+        .site-footer {
+            text-align: center;
+            padding: 3rem 0 4rem;
+            border-top: 1px solid var(--border-subtle);
+            margin-top: clamp(2rem, 4vw, 4rem);
+        }
+        .site-footer p {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5em;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* ═══ LIGHTBOX ═══ */
+        #lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 10, 20, 0.96);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        #lightbox-img-container {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #lightbox-img {
+            transition: transform 0.3s var(--ease);
+            transform-origin: center center;
+            cursor: grab;
+            border-radius: var(--radius-md);
+        }
+        .lightbox-controls {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            display: flex;
+            gap: 0.5rem;
+            z-index: 1001;
+        }
+        .control-btn {
+            background: rgba(148, 163, 194, 0.08);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s var(--ease);
+        }
+        .control-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-light);
+            color: var(--text-primary);
+        }
+
+        /* ═══ RESPONSIVE TWEAKS ═══ */
+        @media (max-width: 640px) {
+            .student-details { gap: 0.75rem 1.5rem; font-size: 0.6rem; }
+            .bento-8, .bento-4, .bento-5, .bento-7 { grid-column: span 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Background -->
+    <div class="ambient" aria-hidden="true"></div>
+
+    <!-- ═══ Student Banner (Sticky) ═══ -->
+    <nav class="student-banner" aria-label="Student Information">
+        <div class="wrapper">
+            <div class="student-details">
+                <div><strong>Name</strong> Lekhit Mehta</div>
+                <div><strong>SAP ID</strong> 500120371</div>
+                <div><strong>Enrollment No</strong> R2142231781</div>
+                <div><strong>Batch</strong> B3 B.Tech CSE 3rd Year (6th Sem)</div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="wrapper">
+
+        <!-- ═══ HERO ═══ -->
+        <header class="hero reveal">
+            <div class="hero-content">
+                <div class="hero-label">
+                    <!-- Lucide: Layers Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+                    Project Assignment 1
+                </div>
+                <h1>Containerized Infrastructure<br><span>& Advanced Networking</span></h1>
+                <p>Implementation of a PostgreSQL-backed FastAPI application utilizing Docker multi-stage builds and Layer 2 network segmentation.</p>
+            </div>
+            <a href="https://github.com/adishri2005/containerization-devops" class="github-btn" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.298 24 12c0-6.627-5.373-12-12-12z"/></svg>
+                View Source
+            </a>
+        </header>
+
+        <!-- ═══ OBJECTIVE & STACK ═══ -->
+        <section class="grid-2">
+            <article class="card reveal">
+                <div class="card-inner">
+                    <div class="section-icon">
+                        <!-- Lucide: Target -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    </div>
+                    <h2>Project Objective</h2>
+                    <ul class="objective-list" style="margin-top:1rem;">
+                        <li>Design, containerize, and deploy a web application via Docker Compose</li>
+                        <li>Demonstrate production-ready multi-stage image optimization</li>
+                        <li>Implement mandatory Layer 2 Macvlan/Ipvlan networking</li>
+                        <li>Ensure persistent storage across container restarts</li>
+                        <li>Manage service orchestration with health-dependent starts</li>
+                    </ul>
+                </div>
+            </article>
+            <article class="card reveal">
+                <div class="card-inner">
+                    <div class="section-icon">
+                        <!-- Lucide: Box -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                    </div>
+                    <h2>Technical Stack</h2>
+                    <div class="tech-tags" style="margin-top:1rem;">
+                        <span class="tech-tag">PostgreSQL</span>
+                        <span class="tech-tag">FastAPI</span>
+                        <span class="tech-tag">Node JS</span>
+                        <span class="tech-tag">Macvlan Driver</span>
+                        <span class="tech-tag">Docker Compose</span>
+                    </div>
+                    <p style="margin-top:1.5rem; font-size:0.8rem; font-style:italic; color:var(--text-muted);">"The system must demonstrate production-ready image building and orchestration."</p>
+                </div>
+            </article>
+        </section>
+
+        <!-- ═══ INFRASTRUCTURE GRID ═══ -->
+        <section class="bento">
+            <!-- Backend Dockerfile -->
+            <article class="card bento-8 reveal">
+                <div class="card-inner">
+                    <div class="card-header">
+                        <h2>
+                            <!-- Lucide: FileCode -->
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle;margin-right:0.5rem;opacity:0.5;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/></svg>
+                            backend/Dockerfile
+                        </h2>
+                        <span class="badge">Optimized Build</span>
+                    </div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('code-backend')">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            Copy
+                        </button>
+                        <pre id="code-backend"><span class="comment"># Stage 1: Build dependencies</span>
+<span class="keyword">FROM</span> python:3.11-slim <span class="keyword">AS</span> builder
+<span class="keyword">WORKDIR</span> /app
+<span class="keyword">RUN</span> apt-get update && apt-get install -y --no-install-recommends \
+    gcc libpq-dev && rm -rf /var/lib/apt/lists/*
+<span class="keyword">COPY</span> requirements.txt .
+<span class="keyword">RUN</span> pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+
+<span class="comment"># Stage 2: Final production image</span>
+<span class="keyword">FROM</span> python:3.11-slim
+<span class="keyword">WORKDIR</span> /app
+<span class="keyword">RUN</span> apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 && rm -rf /var/lib/apt/lists/*
+<span class="keyword">COPY</span> --from=builder /app/wheels /wheels
+<span class="keyword">RUN</span> pip install --no-cache /wheels/*
+<span class="keyword">COPY</span> . /app
+<span class="keyword">RUN</span> useradd -m appuser && chown -R appuser /app
+<span class="keyword">USER</span> appuser
+<span class="keyword">EXPOSE</span> 8000
+<span class="keyword">CMD</span> [<span class="string">"uvicorn"</span>, <span class="string">"main:app"</span>, <span class="string">"--host"</span>, <span class="string">"0.0.0.0"</span>, <span class="string">"--port"</span>, <span class="string">"8000"</span>]</pre>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Network Protocol -->
+            <article class="card bento-4 reveal">
+                <div class="card-inner">
+                    <div class="section-icon">
+                        <!-- Lucide: Network -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg>
+                    </div>
+                    <h2>Network Protocol</h2>
+                    <p style="font-size:0.82rem; margin: 0.75rem 0 1rem;">Mandatory Network Creation Command</p>
+                    <div class="terminal">
+                        <div class="terminal-bar">
+                            <span class="terminal-dot"></span>
+                            <span class="terminal-dot"></span>
+                            <span class="terminal-dot"></span>
+                        </div>
+                        <div class="terminal-body">docker network create -d macvlan \
+--subnet=192.168.100.0/24 \
+--gateway=192.168.100.1 \
+-o parent=eth0 host_macvlan</div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Database Dockerfile -->
+            <article class="card bento-5 reveal">
+                <div class="card-inner">
+                    <div class="card-header">
+                        <h2>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle;margin-right:0.5rem;opacity:0.5;"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+                            database/Dockerfile
+                        </h2>
+                    </div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('code-db')">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            Copy
+                        </button>
+                        <pre id="code-db"><span class="keyword">FROM</span> postgres:15-alpine
+<span class="keyword">COPY</span> init.sql /docker-entrypoint-initdb.d/
+<span class="keyword">RUN</span> chmod a+r /docker-entrypoint-initdb.d/init.sql</pre>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Docker Compose -->
+            <article class="card bento-7 reveal">
+                <div class="card-inner">
+                    <div class="card-header">
+                        <h2>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle;margin-right:0.5rem;opacity:0.5;"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            docker-compose.yml
+                        </h2>
+                        <span class="badge">Orchestration</span>
+                    </div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('code-compose')">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            Copy
+                        </button>
+                        <pre id="code-compose"><span class="keyword">version</span>: <span class="string">'3.8'</span>
+<span class="keyword">services</span>:
+  db:
+    build: ./database
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: webapp
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [macvlan_net]
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/webapp
+    ports: [<span class="string">"8000:8000"</span>]
+    networks: [macvlan_net]
+    depends_on: { db: { condition: service_healthy } }
+<span class="keyword">networks</span>:
+  macvlan_net: { external: true, name: host_macvlan }</pre>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <!-- ═══ DELIVERABLE PROOFS ═══ -->
+        <section class="reveal">
+            <div class="section-heading">
+                <h2>Deliverable <span>Proofs</span></h2>
+            </div>
+            <div class="gallery">
+                <article class="card gallery-item" onclick="openLightbox('screenshot1.png')">
+                    <div class="card-inner">
+                        <div class="gallery-img-wrap">
+                            <img src="screenshot1.png" alt="docker network inspect" loading="lazy">
+                        </div>
+                        <p class="proof-label">Proof 01</p>
+                        <h3>Network Inspection</h3>
+                    </div>
+                </article>
+                <article class="card gallery-item" onclick="openLightbox('screenshot2.png')">
+                    <div class="card-inner">
+                        <div class="gallery-img-wrap">
+                            <img src="screenshot2.png" alt="Container IPs" loading="lazy">
+                        </div>
+                        <p class="proof-label">Proof 02</p>
+                        <h3>Container IP (Macvlan)</h3>
+                    </div>
+                </article>
+                <article class="card gallery-item" onclick="openLightbox('screenshot2.png')">
+                    <div class="card-inner">
+                        <div class="gallery-img-wrap">
+                            <img src="screenshot2.png" alt="Volume Persistence" loading="lazy">
+                        </div>
+                        <p class="proof-label">Proof 03</p>
+                        <h3>Volume Persistence Test</h3>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- ═══ SHORT REPORT ═══ -->
+        <section class="reveal" style="margin-bottom: clamp(3rem, 6vw, 6rem);">
+            <article class="card report-card">
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <h2>Short <span>Report.</span></h2>
+
+                    <div class="report-section">
+                        <p class="report-label">01 / Build Optimization Analysis</p>
+                        <p>Implementing multi-stage builds reduced image footprint from 450MB to ~135MB, purging source build tools (GCC/Compilers) from the final runtime container.</p>
+                    </div>
+
+                    <div class="ascii-diagram">
++-------------------------------------------------------------+
+|               Host Machine / Physical Switch                |
+|               (eth0 / Physical Interface)                   |
++-----------------------------+-------------------------------+
+                              |
++-----------------------------v-------------------------------+
+|               Macvlan Network (802.1q Bridge)               |
++--------------+-------------------------------+--------------+</div>
+
+                    <div class="report-section">
+                        <p class="report-label">02 / Macvlan vs. Ipvlan Comparison</p>
+                        <div class="compare-grid">
+                            <div class="compare-card">
+                                <h4>Macvlan Driver</h4>
+                                <p>Unique IP/MAC per container. Perception as hardware via 802.1q. Best for on-premise hardware transparency.</p>
+                            </div>
+                            <div class="compare-card">
+                                <h4>Ipvlan Driver</h4>
+                                <p>Shared Parent MAC with unique IPs. Critical for AWS/Cloud restrictions where MAC spoofing is blocked.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <!-- ═══ FOOTER ═══ -->
+        <footer class="site-footer">
+            <p>Lekhit Mehta &middot; 500120371 &middot; Enrollment: R2142231781</p>
+        </footer>
+    </div>
+
+    <!-- ═══ LIGHTBOX MODAL ═══ -->
+    <div id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
+        <div class="lightbox-controls">
+            <button class="control-btn" onclick="zoomLightbox(0.15)" title="Zoom In" aria-label="Zoom In">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
+            </button>
+            <button class="control-btn" onclick="zoomLightbox(-0.15)" title="Zoom Out" aria-label="Zoom Out">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
+            </button>
+            <button class="control-btn" onclick="closeLightbox()" title="Close" aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+        <div id="lightbox-img-container" onclick="handleOutsideClick(event)">
+            <img id="lightbox-img" src="" alt="Proof Enlarged">
+        </div>
+    </div>
+
+    <script>
+        /* ── Scroll Reveal ── */
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, i) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => entry.target.classList.add('visible'), i * 80);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        /* ── Copy Code ── */
+        function copyCode(containerId) {
+            const container = document.getElementById(containerId);
+            const text = container.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target.closest('.copy-btn');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M20 6 9 17l-5-5"/></svg> Copied';
+                btn.style.color = '#4ade80';
+                btn.style.borderColor = 'rgba(74, 222, 128, 0.2)';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.style.color = '';
+                    btn.style.borderColor = '';
+                }, 2000);
+            });
+        }
+
+        /* ── Lightbox ── */
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+        let currentScale = 1;
+        let currentX = 0, currentY = 0;
+
+        function openLightbox(src) {
+            lightboxImg.src = src;
+            lightbox.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            currentScale = 1; currentX = 0; currentY = 0;
+            updateScale();
+        }
+
+        function closeLightbox() {
+            lightbox.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function zoomLightbox(delta) {
+            currentScale = Math.max(0.2, Math.min(5, currentScale + delta));
+            updateScale();
+        }
+
+        function updateScale() {
+            lightboxImg.style.transform = `scale(${currentScale}) translate(${currentX / currentScale}px, ${currentY / currentScale}px)`;
+        }
+
+        function handleOutsideClick(e) {
+            if (e.target.id === 'lightbox-img-container') closeLightbox();
+        }
+
+        /* ── Lightbox Drag ── */
+        let isDragging = false;
+        let startX, startY;
+
+        lightboxImg.onmousedown = (e) => {
+            isDragging = true;
+            startX = e.clientX - currentX;
+            startY = e.clientY - currentY;
+            lightboxImg.style.cursor = 'grabbing';
+            e.preventDefault();
+        };
+
+        window.onmousemove = (e) => {
+            if (!isDragging) return;
+            currentX = e.clientX - startX;
+            currentY = e.clientY - startY;
+            updateScale();
+        };
+
+        window.onmouseup = () => {
+            isDragging = false;
+            lightboxImg.style.cursor = 'grab';
+        };
+
+        /* ── Keyboard: ESC closes lightbox ── */
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeLightbox();
+        });
+    </script>
+</body>
+</html>
